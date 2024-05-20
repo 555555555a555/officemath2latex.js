@@ -24,45 +24,15 @@
 
       async function readFile(docxFile) {
         viewArea.textContent = "";
+        const zip = await JSZip.loadAsync(docxFile);
+        const mainXmlDoc = await zip.file("word/document.xml");
+        const xmlText = await mainXmlDoc.async("string");
+        const parser = new DOMParser();
+        const doc = parser.parseFromString(xmlText, "text/xml");
 
-        let zip = await JSZip.loadAsync(docxFile);
-        let mainXmlDoc;
-
-        zip.forEach(async function (relativePath, zipEntry) {
-          switch (zipEntry.name) {
-            case "word/document.xml":
-              mainXmlDoc = zip.file(zipEntry.name);
-              break;
-          }
-        });
-
-        const mainXml = await getXmlRoot(mainXmlDoc);
-
-        if (mainXml === undefined) {
-          alert("not a .docx file!");
-          return;
-        }
-
-        if (mainXml.nodeName !== "w:document") {
-          alert("not a .docx file!");
-          return;
-        }
-
-        const oMathElements = mainXml.querySelectorAll("oMath");
+        const oMathElements = doc.documentElement.querySelectorAll("oMath");
         for (const oMathElement of oMathElements) {
           viewArea.textContent += processMathNode(oMathElement) + "\n\n";
-        }
-      }
-
-      async function getXmlRoot(xmlFile) {
-        if (xmlFile === undefined) return undefined;
-        try {
-          xmlText = await xmlFile.async("string");
-          const parser = new DOMParser();
-          const doc = parser.parseFromString(xmlText, "text/xml");
-          return doc.documentElement;
-        } catch (error) {
-          console.log(error);
         }
       }
     </script>
