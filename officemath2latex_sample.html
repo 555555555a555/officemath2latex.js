@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>officemath2latex sample</title>
+  </head>
+  <body>
+    <p>please select .docx file.</p>
+    <input type="file" id="zip-file" accept=".docx" />
+    <br />
+    <hr />
+    <div id="xml-viewarea" style="white-space: pre-line"></div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js"></script>
+    <script>
+      const fileSelectButton = document.getElementById("zip-file");
+      const viewArea = document.getElementById("xml-viewarea");
+
+      fileSelectButton.addEventListener("change", (event) => {
+        readFile(event.target.files[0]);
+        fileSelectButton.value = null;
+      });
+
+      async function readFile(docxFile) {
+        viewArea.textContent = "";
+
+        let zip = await JSZip.loadAsync(docxFile);
+        let mainXmlDoc;
+
+        zip.forEach(async function (relativePath, zipEntry) {
+          switch (zipEntry.name) {
+            case "word/document.xml":
+              mainXmlDoc = zip.file(zipEntry.name);
+              break;
+          }
+        });
+
+        const mainXml = await getXmlRoot(mainXmlDoc);
+
+        if (mainXml === undefined) {
+          alert("not a .docx file!");
+          return;
+        }
+
+        if (mainXml.nodeName !== "w:document") {
+          alert("not a .docx file!");
+          return;
+        }
+
+        const oMathElements = mainXml.querySelectorAll("oMath");
+        for (const oMathElement of oMathElements) {
+          viewArea.textContent += processMathNode(oMathElement) + "\n\n";
+        }
+      }
+
+      async function getXmlRoot(xmlFile) {
+        if (xmlFile === undefined) return undefined;
+        try {
+          xmlText = await xmlFile.async("string");
+          const parser = new DOMParser();
+          const doc = parser.parseFromString(xmlText, "text/xml");
+          return doc.documentElement;
+        } catch (error) {
+          console.log(error);
+        }
+      }
+    </script>
+    <script src="./officemath2latex.js"></script>
+  </body>
+</html>
