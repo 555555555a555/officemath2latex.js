@@ -2,38 +2,27 @@
 <html>
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>officemath2latex sample</title>
   </head>
   <body>
-    <p>please select .docx file.</p>
-    <input type="file" id="zip-file" accept=".docx" />
-    <br />
+    <p>select .docx file</p>
+    <input id="f" type="file" accept=".docx" />
     <hr />
-    <div id="xml-viewarea" style="white-space: pre-line"></div>
-
+    <div id="v" style="white-space: pre-line"></div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js"></script>
     <script>
-      const fileSelectButton = document.getElementById("zip-file");
-      const viewArea = document.getElementById("xml-viewarea");
-
-      fileSelectButton.addEventListener("change", (event) => {
-        readFile(event.target.files[0]);
-        fileSelectButton.value = null;
-      });
-
-      async function readFile(docxFile) {
-        viewArea.textContent = "";
-        const zip = await JSZip.loadAsync(docxFile);
-        const mainXmlDoc = await zip.file("word/document.xml");
-        const xmlText = await mainXmlDoc.async("string");
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(xmlText, "text/xml");
-
-        const oMathElements = doc.documentElement.querySelectorAll("oMath");
-        for (const oMathElement of oMathElements) {
-          viewArea.textContent += processMathNode(oMathElement) + "\n\n";
-        }
+      f.onchange = (e) => {
+        let t = e.target.files[0];
+        (f.value = null), readFile(t);
+      };
+      async function readFile(t) {
+        v.textContent = "";
+        let e = await JSZip.loadAsync(t),
+          n = await e.file("word/document.xml"),
+          o = await n.async("string"),
+          r = new DOMParser(),
+          a = r.parseFromString(o, "text/xml");
+        for (let e of a.documentElement.querySelectorAll("oMath")) v.textContent += processMathNode(e) + "\n\n";
       }
     </script>
     <script src="./officemath2latex.js"></script>
