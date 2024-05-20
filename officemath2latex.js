@@ -1,14 +1,14 @@
 //
 // officemath2latex.js (under construction)
 //
-// This program defines a function named processMathLoop(mathXml) that converts mathematical
-// expressions in OfficeMath format (likely from DocumentFormat.OpenXml.Math) to LaTeX code.
+// This program defines a function named processMathNode that converts mathematical
+// expressions in OfficeMath format (DocumentFormat.OpenXml.Math) to LaTeX code.
 // It takes an XML element as input and returns the corresponding LaTeX representation.
 // The input mathXml element must have the node name "m:oMath".
 //
 
-function processMathLoop(mathXml, chr = "") {
-  console.log("processMathLoop" + chr);
+function processMathNode(mathXml, chr = "") {
+  console.log("processMathNode" + chr);
   let mathString = "";
   for (const mathElement of mathXml.childNodes) {
     console.log(mathElement);
@@ -22,7 +22,7 @@ function processMathElement(mathElement, chr = "") {
   console.log("-processMathElement" + chr);
   switch (mathElement.nodeName) {
     case "m:e":
-      return processMathLoop(mathElement, chr) + chr;
+      return processMathNode(mathElement, chr) + chr;
     case "m:r":
       return processMath_run(mathElement, chr);
     case "m:sSup":
@@ -41,6 +41,10 @@ function processMathElement(mathElement, chr = "") {
       return processMath_limLow(mathElement, chr);
     case "m:m":
       return processMath_m(mathElement, chr);
+    case "m:acc":
+      return processMath_acc(mathElement, chr);
+    case "m:rad":
+      return processMath_rad(mathElement, chr);
     default:
       break;
   }
@@ -95,9 +99,9 @@ function processMath_sSup(mathElements, chr = "") {
   let mathString = "";
   for (const mathElement of mathElements.childNodes) {
     if (mathElement.nodeName === "m:e") {
-      mathString += processMathLoop(mathElement, chr);
+      mathString += processMathNode(mathElement, chr);
     } else if (mathElement.nodeName === "m:sup") {
-      mathString += "^{" + processMathLoop(mathElement, chr) + "}";
+      mathString += "^{" + processMathNode(mathElement, chr) + "}";
     }
   }
   return mathString;
@@ -108,9 +112,9 @@ function processMath_sSub(mathElements, chr = "") {
   let mathString = "";
   for (const mathElement of mathElements.childNodes) {
     if (mathElement.nodeName === "m:e") {
-      mathString += processMathLoop(mathElement, chr);
+      mathString += processMathNode(mathElement, chr);
     } else if (mathElement.nodeName === "m:sub") {
-      mathString += "_{" + processMathLoop(mathElement, chr) + "}";
+      mathString += "_{" + processMathNode(mathElement, chr) + "}";
     }
   }
   return mathString;
@@ -132,25 +136,33 @@ function processMath_d(mathElements, chr = "") {
         }
       }
     } else if (mathElement.nodeName === "m:e") {
-      mathString += processMathLoop(mathElement, chr);
+      mathString += processMathNode(mathElement, chr);
     }
   }
-  return openPar + mathString + closePar;
+  if (mathString.startsWith("\\binom{")) return mathString;
+  else return openPar + mathString + closePar;
 }
 
 function processMath_f(mathElements, chr = "") {
   console.log("-processMath_f" + chr);
-  let mathString = "\\frac{";
+  let mathString = "";
+  let fracString = "\\frac{";
   for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:num") {
-      mathString += processMathLoop(mathElement, chr);
+    if (mathElement.nodeName === "m:fPr") {
+      for (const fPr of mathElement.childNodes) {
+        if (fPr.nodeName === "m:type") {
+          if (fPr.getAttribute("m:val") === "noBar") fracString = "\\binom{";
+        }
+      }
+    } else if (mathElement.nodeName === "m:num") {
+      mathString += processMathNode(mathElement, chr);
       mathString += "}{";
     }
     if (mathElement.nodeName === "m:den") {
-      mathString += processMathLoop(mathElement, chr) + "}";
+      mathString += processMathNode(mathElement, chr);
     }
   }
-  return mathString;
+  return fracString + mathString + "}";
 }
 
 function processMath_nary(mathElements, chr = "") {
@@ -158,13 +170,13 @@ function processMath_nary(mathElements, chr = "") {
   let mathString = "\\sum";
   for (const mathElement of mathElements.childNodes) {
     if (mathElement.nodeName === "m:sub") {
-      mathString += "_{" + processMathLoop(mathElement, chr);
+      mathString += "_{" + processMathNode(mathElement, chr);
       mathString += "}";
     } else if (mathElement.nodeName === "m:sup") {
-      mathString += "^{" + processMathLoop(mathElement, chr);
+      mathString += "^{" + processMathNode(mathElement, chr);
       mathString += "}";
     } else {
-      mathString += processMathLoop(mathElement, chr);
+      mathString += processMathNode(mathElement, chr);
     }
   }
   return mathString;
@@ -175,7 +187,7 @@ function processMath_func(mathElements, chr = "") {
   let mathString = "";
   for (const mathElement of mathElements.childNodes) {
     if (mathElement.nodeName === "m:fName") {
-      const functionName = processMathLoop(mathElement, chr);
+      const functionName = processMathNode(mathElement, chr);
       switch (functionName) {
         case "cos":
           mathString += "\\cos ";
@@ -185,7 +197,7 @@ function processMath_func(mathElements, chr = "") {
           break;
       }
     } else {
-      mathString += processMathLoop(mathElement, chr);
+      mathString += processMathNode(mathElement, chr);
     }
   }
   return mathString;
@@ -196,11 +208,11 @@ function processMath_limLow(mathElements, chr = "") {
   let mathString = "";
   for (const mathElement of mathElements.childNodes) {
     if (mathElement.nodeName === "m:e") {
-      const elementString = processMathLoop(mathElement, chr);
+      const elementString = processMathNode(mathElement, chr);
       if (elementString.trim() === "lim") mathString += "\\" + elementString.trim();
       else mathString += elementString;
     } else if (mathElement.nodeName === "m:lim") {
-      mathString += "_{" + processMathLoop(mathElement, chr) + "}";
+      mathString += "_{" + processMathNode(mathElement, chr) + "}";
     }
   }
   return mathString;
@@ -211,8 +223,30 @@ function processMath_m(mathElements, chr = "") {
   let mathString = "\\begin{matrix}\n";
   for (const mathElement of mathElements.childNodes) {
     if (mathElement.nodeName === "m:mr") {
-      mathString += processMathLoop(mathElement, "&").slice(0, -1) + " \\\\ \n";
+      mathString += processMathNode(mathElement, "&").slice(0, -1) + " \\\\ \n";
     }
   }
   return mathString + "\\end{matrix} ";
+}
+
+function processMath_acc(mathElements, chr = "") {
+  console.log("-processMath_acc" + chr);
+  let mathString = "\\overrightarrow{";
+  for (const mathElement of mathElements.childNodes) {
+    if (mathElement.nodeName === "m:e") {
+      mathString += processMathNode(mathElement, chr);
+    }
+  }
+  return mathString + "}";
+}
+
+function processMath_rad(mathElements, chr = "") {
+  console.log("-processMath_rad" + chr);
+  let mathString = "\\sqrt{";
+  for (const mathElement of mathElements.childNodes) {
+    if (mathElement.nodeName === "m:e") {
+      mathString += processMathNode(mathElement, chr);
+    }
+  }
+  return mathString + "}";
 }
