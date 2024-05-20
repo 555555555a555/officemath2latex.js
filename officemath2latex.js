@@ -81,9 +81,13 @@ function processMath_run(mathElements, chr = "") {
     { pre: /∓/g, post: "\\mp " },
     { pre: /α/g, post: "\\alpha " },
     { pre: /β/g, post: "\\beta " },
+    { pre: /γ/g, post: "\\gamma " },
     { pre: /…/g, post: "\\ldots " },
     { pre: /⋅/g, post: "\\cdot " },
     { pre: /×/g, post: "\\times " },
+    { pre: /θ/g, post: "\\theta " },
+    { pre: /Γ/g, post: "\\Gamma " },
+    { pre: /≈/g, post: "\\approx " },
   ];
 
   for (const replacestr of replacestrs) {
@@ -167,16 +171,23 @@ function processMath_f(mathElements, chr = "") {
 
 function processMath_nary(mathElements, chr = "") {
   console.log("-processMath_nary" + chr);
-  let mathString = "\\sum";
+  let mathString = "\\int";
   for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:sub") {
+    if (mathElement.nodeName === "m:naryPr") {
+      for (const naryPr of mathElement.childNodes) {
+        if (naryPr.nodeName === "m:chr") {
+          if (naryPr.getAttribute("m:val") === "∑") mathString = "\\sum";
+          else if (naryPr.getAttribute("m:val") === "∏") mathString = "\\prod";
+        }
+      }
+    } else if (mathElement.nodeName === "m:sub") {
       mathString += "_{" + processMathNode(mathElement, chr);
       mathString += "}";
     } else if (mathElement.nodeName === "m:sup") {
       mathString += "^{" + processMathNode(mathElement, chr);
       mathString += "}";
     } else {
-      mathString += processMathNode(mathElement, chr);
+      mathString += "{" + processMathNode(mathElement, chr) + "}";
     }
   }
   return mathString;
@@ -190,17 +201,17 @@ function processMath_func(mathElements, chr = "") {
       const functionName = processMathNode(mathElement, chr);
       switch (functionName) {
         case "cos":
-          mathString += "\\cos ";
+          mathString += "\\cos{ ";
           break;
         case "sin":
-          mathString += "\\sin ";
+          mathString += "\\sin{ ";
           break;
       }
     } else {
       mathString += processMathNode(mathElement, chr);
     }
   }
-  return mathString;
+  return mathString + "}";
 }
 
 function processMath_limLow(mathElements, chr = "") {
