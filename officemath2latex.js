@@ -4,7 +4,7 @@
 // This program defines a function named processMathNode that converts mathematical
 // expressions in OfficeMath format (DocumentFormat.OpenXml.Math) to LaTeX code.
 // It takes an XML element as input and returns the corresponding LaTeX representation.
-// The input mathXml element must have the node name "m:oMath".
+// The input mathXml element must be "m:oMath" node.
 //
 
 function processMathNode(mathXml, chr = "") {
@@ -45,6 +45,8 @@ function processMathElement(mathElement, chr = "") {
       return processMath_acc(mathElement, chr);
     case "m:rad":
       return processMath_rad(mathElement, chr);
+    case "m:eqArr":
+      return processMath_eqArr(mathElement, chr);
     default:
       break;
   }
@@ -57,18 +59,18 @@ function processMath_run(mathElements, chr = "") {
   let mathString = "";
   let flagBold = false;
 
-  for (const mathRunElement of mathElements.childNodes) {
-    if (mathRunElement.nodeName === "m:rPr") {
-      for (const rPr of mathRunElement.childNodes) {
+  for (const mathElement of mathElements.childNodes) {
+    if (mathElement.nodeName === "m:rPr") {
+      for (const rPr of mathElement.childNodes) {
         if (rPr.nodeName === "m:sty") {
           if (rPr.getAttribute("m:val") === "b") flagBold = true;
         }
       }
-    } else if (mathRunElement.nodeName === "m:t") {
-      if (mathRunElement.getAttribute("xml:space") === "preserve") {
+    } else if (mathElement.nodeName === "m:t") {
+      if (mathElement.getAttribute("xml:space") === "preserve") {
         mathString += "\\ \\ ";
       } else {
-        mathString += mathRunElement.textContent;
+        mathString += mathElement.textContent;
       }
     }
   }
@@ -88,6 +90,14 @@ function processMath_run(mathElements, chr = "") {
     { pre: /θ/g, post: "\\theta " },
     { pre: /Γ/g, post: "\\Gamma " },
     { pre: /≈/g, post: "\\approx " },
+    { pre: /ⅈ/g, post: "i " }, //"\\mathbb{i} "? mathbb -> usepackage{amsfonts}
+    { pre: /∇/g, post: "\\nabla " },
+    { pre: /ⅆ/g, post: "d " }, //"\\mathbb{d} "?
+    { pre: /≥/g, post: "\\geq " },
+    { pre: /∀/g, post: "\\forall " },
+    { pre: /∃/g, post: "\\exists " },
+    { pre: /∧/g, post: "\\land " },
+    { pre: /⇒/g, post: "\\Rightarrow " },
   ];
 
   for (const replacestr of replacestrs) {
@@ -135,8 +145,14 @@ function processMath_d(mathElements, chr = "") {
       for (const dPr of mathElement.childNodes) {
         if (dPr.nodeName === "m:begChr") {
           if (dPr.getAttribute("m:val") === "|") openPar = "\\left| ";
+          if (dPr.getAttribute("m:val") === "{") openPar = "\\left\\{ ";
+          if (dPr.getAttribute("m:val") === "[") openPar = "\\left\\lbrack ";
+          if (dPr.getAttribute("m:val") === "") openPar = "\\left. ";
         } else if (dPr.nodeName === "m:endChr") {
           if (dPr.getAttribute("m:val") === "|") closePar = "\\right|";
+          if (dPr.getAttribute("m:val") === "}") closePar = "\\right\\} ";
+          if (dPr.getAttribute("m:val") === "]") closePar = "\\right\\rbrack ";
+          if (dPr.getAttribute("m:val") === "") closePar = "\\right. ";
         }
       }
     } else if (mathElement.nodeName === "m:e") {
@@ -156,6 +172,7 @@ function processMath_f(mathElements, chr = "") {
       for (const fPr of mathElement.childNodes) {
         if (fPr.nodeName === "m:type") {
           if (fPr.getAttribute("m:val") === "noBar") fracString = "\\binom{";
+          if (fPr.getAttribute("m:val") === "skw") fracString = "\\nicefrac{"; //\usepackage{units}
         }
       }
     } else if (mathElement.nodeName === "m:num") {
@@ -178,6 +195,9 @@ function processMath_nary(mathElements, chr = "") {
         if (naryPr.nodeName === "m:chr") {
           if (naryPr.getAttribute("m:val") === "∑") mathString = "\\sum";
           else if (naryPr.getAttribute("m:val") === "∏") mathString = "\\prod";
+          else if (naryPr.getAttribute("m:val") === "∮") mathString = "\\oint";
+          else if (naryPr.getAttribute("m:val") === "∭") mathString = "\\iiint";
+          else if (naryPr.getAttribute("m:val") === "∯") mathString = "\\oiint"; //usepackage{esint}
         }
       }
     } else if (mathElement.nodeName === "m:sub") {
@@ -253,11 +273,27 @@ function processMath_acc(mathElements, chr = "") {
 
 function processMath_rad(mathElements, chr = "") {
   console.log("-processMath_rad" + chr);
-  let mathString = "\\sqrt{";
+  let mathString = "\\sqrt";
   for (const mathElement of mathElements.childNodes) {
+    if (mathElement.nodeName === "m:deg") {
+      mathString += "[" + processMathNode(mathElement, chr) + "]";
+    }
     if (mathElement.nodeName === "m:e") {
-      mathString += processMathNode(mathElement, chr);
+      mathString += "{" + processMathNode(mathElement, chr) + "}";
     }
   }
-  return mathString + "}";
+  return mathString;
+}
+
+function processMath_eqArr(mathElements, chr = "") {
+  console.log("-processMath_eqArr" + chr);
+  let mathString = "\\begin{aligned}\n";
+  for (const mathElement of mathElements.childNodes) {
+    if (mathElement.nodeName === "m:e") {
+      mathString += processMathNode(mathElement) + " \\\\ \n";
+    }
+  }
+  mathString = mathString.replace(/ &/g, "\\ \\ &");
+  if (mathString.endsWith(" \\\\ \n")) mathString = mathString.slice(0, -5) + "\n";
+  return mathString + "\\end{aligned} ";
 }
