@@ -98,6 +98,8 @@ function processMath_run(mathElements, chr = "") {
     { pre: /∃/g, post: "\\exists " },
     { pre: /∧/g, post: "\\land " },
     { pre: /⇒/g, post: "\\Rightarrow " },
+    { pre: /ψ/g, post: "\\psi " },
+    { pre: /∂/g, post: "\\partial " },
   ];
 
   for (const replacestr of replacestrs) {
@@ -225,6 +227,9 @@ function processMath_func(mathElements, chr = "") {
           break;
         case "sin":
           mathString += "\\sin{ ";
+          break;
+        default:
+          mathString += functionName + "{";
           break;
       }
     } else {
