@@ -7,10 +7,10 @@ The input mathXml element must be `m:oMath` node.
 
 It can convert most of the formulas that are included as samples in MS Word equations, but I think this will be enough in most cases.
 
-## HOW TO USE
+## How to use
 
 For detailed usage instructions and examples, please refer to the `officemath2latex_sample.html` file provided in the repository.
 This file demonstrates how to integrate the function into your project.
 
-## MIT License
+## License
 This project is licensed under the MIT License.
