@@ -5,7 +5,11 @@ expressions in OfficeMath format (DocumentFormat.OpenXml.Math) to LaTeX code.
 It takes an XML element as input and returns the corresponding LaTeX representation.
 The input mathXml element must be `m:oMath` node.
 
-It can convert most of the formulas that are included as samples in MS Word equations, but I think this will be enough in most cases.
+It can convert most of the formulas that are included as samples in MS Word equations.
+While I believe this current implementation should be adequate for most users,
+I recognize that those who work with more complex equations may require additional functionalities.
+
+Please feel free to inform me if you encounter any issues or have suggestions for improvement.
 
 ## How to use
 
