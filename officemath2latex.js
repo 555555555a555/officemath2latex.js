@@ -1,5 +1,5 @@
 //
-// officemath2latex.js (under construction)
+// officemath2latex.js
 //
 // This program defines a function named processMathNode that converts mathematical
 // expressions in OfficeMath format (DocumentFormat.OpenXml.Math) to LaTeX code.
@@ -100,6 +100,49 @@ function processMath_run(mathElements, chr = "") {
     { pre: /⇒/g, post: "\\Rightarrow " },
     { pre: /ψ/g, post: "\\psi " },
     { pre: /∂/g, post: "\\partial " },
+    { pre: /≠/g, post: "\\neq " },
+    { pre: /~/g, post: "\\sim " },
+    { pre: /÷/g, post: "\\div " },
+    { pre: /∝/g, post: "\\propto " },
+    { pre: /≪/g, post: "\\ll " },
+    { pre: /≫/g, post: "\\gg " },
+    { pre: /≤/g, post: "\\leq " },
+    { pre: /≅/g, post: "\\cong " },
+    { pre: /≡/g, post: "\\equiv " },
+    { pre: /∁/g, post: "\\complement " },
+    { pre: /∪/g, post: "\\cup " },
+    { pre: /∩/g, post: "\\cap " },
+    { pre: /∅/g, post: "\\varnothing " },
+    { pre: /∆/g, post: "\\mathrm{\\Delta}, " },
+    { pre: /∄/g, post: "\\nexists " },
+    { pre: /∈/g, post: "\\in " },
+    { pre: /∋/g, post: "\\ni " },
+    { pre: /←/g, post: "\\leftarrow " },
+    { pre: /↑/g, post: "\\uparrow " },
+    { pre: /↓/g, post: "\\downarrow " },
+    { pre: /↔/g, post: "\\leftrightarrow " },
+    { pre: /∴/g, post: "\\therefore " },
+    { pre: /¬/g, post: "\\neg " },
+    { pre: /δ/g, post: "\\delta " },
+    { pre: /ε/g, post: "\\varepsilon " },
+    { pre: /ϵ/g, post: "\\epsilon " },
+    { pre: /ϑ/g, post: "\\vartheta " },
+    { pre: /μ/g, post: "\\mu " },
+    { pre: /ρ/g, post: "\\rho " },
+    { pre: /σ/g, post: "\\sigma " },
+    { pre: /τ/g, post: "\\tau " },
+    { pre: /φ/g, post: "\\varphi " },
+    { pre: /ω/g, post: "\\omega " },
+    { pre: /∙/g, post: "\\bullet " },
+    { pre: /⋮/g, post: "\\vdots " },
+    { pre: /⋱/g, post: "\\ddots " },
+    { pre: /ℵ/g, post: "\\aleph " },
+    { pre: /ℶ/g, post: "\\beth " },
+    { pre: /∎/g, post: "\\blacksquare " },
+    { pre: /%°/g, post: "\\%{^\\circ} " },
+    { pre: /√/g, post: "\\sqrt{} " },
+    { pre: /∛/g, post: "\\sqrt[3]{} " },
+    { pre: /∜/g, post: "\\sqrt[4]{} " },
   ];
 
   for (const replacestr of replacestrs) {
