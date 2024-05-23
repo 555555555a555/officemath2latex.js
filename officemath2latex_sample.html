@@ -23,17 +23,39 @@
         for (let element of xml.documentElement.querySelectorAll("oMath")) {
           const latexFormulaString = processMathNode(element);
 
+          const formulaXmlDiv = document.createElement("div");
+          createAccordion(formulaXmlDiv, "View OfficeMath XML", element.outerHTML);
+
           const formulaDisplayDiv = document.createElement("input");
           formulaDisplayDiv.style.width = "100%";
+          formulaDisplayDiv.style.border = "0";
           formulaDisplayDiv.value = latexFormulaString;
 
           const mathJaxRenderedDiv = document.createElement("p");
           mathJaxRenderedDiv.innerHTML = "\\[" + latexFormulaString.replace("<", "&lt;").replace(">", "&gt;") + "\\]";
 
+          const hrElement = document.createElement("hr");
+
           container.appendChild(formulaDisplayDiv);
           container.appendChild(mathJaxRenderedDiv);
+          container.appendChild(formulaXmlDiv);
+          container.appendChild(hrElement);
         }
         await MathJax.typeset();
+      }
+      function createAccordion(accordionContainer, title, content) {
+        const detailsElement = document.createElement("details");
+        const summaryElement = document.createElement("summary");
+        summaryElement.textContent = title;
+
+        const contentElement = document.createElement("div");
+        contentElement.classList.add("accordion-content");
+        contentElement.innerText = content;
+
+        detailsElement.appendChild(summaryElement);
+        detailsElement.appendChild(contentElement);
+
+        accordionContainer.appendChild(detailsElement);
       }
     </script>
     <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
