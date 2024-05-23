@@ -6,25 +6,39 @@
   </head>
   <body>
     <p>select .docx file</p>
-    <input id="f" type="file" accept=".docx" />
+    <input id="file" type="file" accept=".docx" />
     <hr />
-    <div id="v" style="white-space: pre-line"></div>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js"></script>
+    <div id="container"></div>
     <script>
-      f.onchange = (e) => {
-        let t = e.target.files[0];
-        (f.value = null), readFile(t);
+      file.onchange = (e) => {
+        let target = e.target.files[0];
+        (file.value = null), readFile(target);
       };
-      async function readFile(t) {
-        v.textContent = "";
-        let e = await JSZip.loadAsync(t),
-          n = await e.file("word/document.xml"),
-          o = await n.async("string"),
-          r = new DOMParser(),
-          a = r.parseFromString(o, "text/xml");
-        for (let e of a.documentElement.querySelectorAll("oMath")) v.textContent += processMathNode(e) + "\n\n";
+      async function readFile(target) {
+        container.innerHTML = "";
+
+        let str = await (await (await JSZip.loadAsync(target)).file("word/document.xml")).async("string"),
+          xml = new DOMParser().parseFromString(str, "text/xml");
+
+        for (let element of xml.documentElement.querySelectorAll("oMath")) {
+          const latexFormulaString = processMathNode(element);
+
+          const formulaDisplayDiv = document.createElement("input");
+          formulaDisplayDiv.style.width = "100%";
+          formulaDisplayDiv.value = latexFormulaString;
+
+          const mathJaxRenderedDiv = document.createElement("p");
+          mathJaxRenderedDiv.innerHTML = "\\[" + latexFormulaString.replace("<", "&lt;").replace(">", "&gt;") + "\\]";
+
+          container.appendChild(formulaDisplayDiv);
+          container.appendChild(mathJaxRenderedDiv);
+          await MathJax.typeset();
+        }
       }
     </script>
+    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
+    <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js"></script>
     <script src="./officemath2latex.js"></script>
   </body>
 </html>

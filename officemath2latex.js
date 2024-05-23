@@ -47,6 +47,10 @@ function processMathElement(mathElement, chr = "") {
       return processMath_rad(mathElement, chr);
     case "m:eqArr":
       return processMath_eqArr(mathElement, chr);
+    case "m:box":
+      return "{" + processMathNode(mathElement, chr) + "}";
+    case "m:sPre":
+      return processMath_sPre(mathElement, chr);
     default:
       break;
   }
@@ -218,6 +222,7 @@ function processMath_f(mathElements, chr = "") {
         if (fPr.nodeName === "m:type") {
           if (fPr.getAttribute("m:val") === "noBar") fracString = "\\binom{";
           if (fPr.getAttribute("m:val") === "skw") fracString = "\\nicefrac{"; //\usepackage{units}
+          if (fPr.getAttribute("m:val") === "lin") fracString = " ";
         }
       }
     } else if (mathElement.nodeName === "m:num") {
@@ -228,6 +233,7 @@ function processMath_f(mathElements, chr = "") {
       mathString += processMathNode(mathElement, chr);
     }
   }
+  if (fracString === " ") return "\\ " + mathString.replace("}{", "/");
   return fracString + mathString + "}";
 }
 
@@ -344,4 +350,21 @@ function processMath_eqArr(mathElements, chr = "") {
   mathString = mathString.replace(/ &/g, "\\ \\ &");
   if (mathString.endsWith(" \\\\ \n")) mathString = mathString.slice(0, -5) + "\n";
   return mathString + "\\end{aligned} ";
+}
+
+function processMath_sPre(mathElements, chr = "") {
+  console.log("-processMath_sPre" + chr);
+  let mathString = ""; //"\\int";
+  for (const mathElement of mathElements.childNodes) {
+    if (mathElement.nodeName === "m:sub") {
+      mathString += "_{" + processMathNode(mathElement, chr);
+      mathString += "}";
+    } else if (mathElement.nodeName === "m:sup") {
+      mathString += "^{" + processMathNode(mathElement, chr);
+      mathString += "}";
+    } else if (mathElement.nodeName !== "m:ctrlPr") {
+      mathString += processMathNode(mathElement, chr);
+    }
+  }
+  return mathString;
 }
