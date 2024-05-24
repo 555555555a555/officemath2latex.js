@@ -32,7 +32,7 @@
           formulaDisplayDiv.value = latexFormulaString;
 
           const mathJaxRenderedDiv = document.createElement("p");
-          mathJaxRenderedDiv.innerHTML = "\\[" + latexFormulaString.replace("<", "&lt;").replace(">", "&gt;") + "\\]";
+          mathJaxRenderedDiv.innerHTML = "\\[" + latexFormulaString.replace(/</g, "&lt;").replace(/>/g, "&gt;") + "\\]";
 
           const hrElement = document.createElement("hr");
 

@@ -72,7 +72,8 @@ function processMath_run(mathElements, chr = "") {
       }
     } else if (mathElement.nodeName === "m:t") {
       if (mathElement.getAttribute("xml:space") === "preserve") {
-        mathString += "\\ \\ ";
+        if (mathElement.textContent.trim() === "") mathString += "\\ \\ ";
+        else mathString += processMath_FieldCode(mathElement.textContent);
       } else {
         mathString += mathElement.textContent;
       }
@@ -208,7 +209,7 @@ function processMath_d(mathElements, chr = "") {
       mathString += processMathNode(mathElement, chr);
     }
   }
-  if (mathString.startsWith("\\binom{")) return mathString;
+  if (mathString.startsWith("\\genfrac{}{}{0pt}{}{")) return mathString.replace("\\genfrac{}{}{0pt}{}{", "\\binom{");
   else return openPar + mathString + closePar;
 }
 
@@ -220,7 +221,7 @@ function processMath_f(mathElements, chr = "") {
     if (mathElement.nodeName === "m:fPr") {
       for (const fPr of mathElement.childNodes) {
         if (fPr.nodeName === "m:type") {
-          if (fPr.getAttribute("m:val") === "noBar") fracString = "\\binom{";
+          if (fPr.getAttribute("m:val") === "noBar") fracString = "\\genfrac{}{}{0pt}{}{"; // if in d "\\binom{";
           if (fPr.getAttribute("m:val") === "skw") fracString = "\\nicefrac{"; //\usepackage{units}
           if (fPr.getAttribute("m:val") === "lin") fracString = " ";
         }
@@ -246,9 +247,16 @@ function processMath_nary(mathElements, chr = "") {
         if (naryPr.nodeName === "m:chr") {
           if (naryPr.getAttribute("m:val") === "∑") mathString = "\\sum";
           else if (naryPr.getAttribute("m:val") === "∏") mathString = "\\prod";
-          else if (naryPr.getAttribute("m:val") === "∮") mathString = "\\oint";
+          else if (naryPr.getAttribute("m:val") === "∐") mathString = "\\coprod";
+          else if (naryPr.getAttribute("m:val") === "∬") mathString = "\\iint";
           else if (naryPr.getAttribute("m:val") === "∭") mathString = "\\iiint";
-          else if (naryPr.getAttribute("m:val") === "∯") mathString = "\\oiint"; //usepackage{esint}
+          else if (naryPr.getAttribute("m:val") === "∮") mathString = "\\oint";
+          else if (naryPr.getAttribute("m:val") === "∯") mathString = "\\oiint"; //\usepackage{esint}
+          else if (naryPr.getAttribute("m:val") === "∰") mathString = "\\oiiint"; // \usepackage{mathdesign,mdsymbol}
+          else if (naryPr.getAttribute("m:val") === "⋃") mathString = "\\bigcup";
+          else if (naryPr.getAttribute("m:val") === "⋂") mathString = "\\bigcap";
+          else if (naryPr.getAttribute("m:val") === "⋁") mathString = "\\bigvee";
+          else if (naryPr.getAttribute("m:val") === "⋀") mathString = "\\bigwedge";
         }
       }
     } else if (mathElement.nodeName === "m:sub") {
@@ -354,7 +362,7 @@ function processMath_eqArr(mathElements, chr = "") {
 
 function processMath_sPre(mathElements, chr = "") {
   console.log("-processMath_sPre" + chr);
-  let mathString = ""; //"\\int";
+  let mathString = "";
   for (const mathElement of mathElements.childNodes) {
     if (mathElement.nodeName === "m:sub") {
       mathString += "_{" + processMathNode(mathElement, chr);
@@ -367,4 +375,24 @@ function processMath_sPre(mathElements, chr = "") {
     }
   }
   return mathString;
+}
+
+function processMath_FieldCode(mathText, chr = "") {
+  console.log("-processMath_FieldCode" + chr);
+
+  const results_cancel1 = mathText.match(/eq \\o\s?\((.*?),\/\)/i);
+  const results_cancel2 = mathText.match(/eq \\o\s?\((.*?),／\)/i);
+  const results_overline = mathText.match(/eq \\x\s?\\to \((.*?)\)/i);
+
+  if (results_cancel1) {
+    return `\\cancel{${results_cancel1[1]}}`;
+  }
+  if (results_cancel2) {
+    return `\\cancel{${results_cancel2[1]}}`;
+  }
+  if (results_overline) {
+    return `\\overline{${results_overline[1]}}`;
+  }
+
+  return mathText;
 }
