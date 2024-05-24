@@ -8,391 +8,474 @@
 //
 
 function processMathNode(mathXml, chr = "") {
-  console.log("processMathNode" + chr);
   let mathString = "";
-  for (const mathElement of mathXml.childNodes) {
-    console.log(mathElement);
-    mathString += processMathElement(mathElement, chr);
-    console.log("RESULT: " + mathString);
+  for (const childXml of mathXml.childNodes) {
+    const childElement = new OfficeMathElement(childXml);
+    mathString += childElement.process(chr);
   }
   return mathString;
 }
 
-function processMathElement(mathElement, chr = "") {
-  console.log("-processMathElement" + chr);
-  switch (mathElement.nodeName) {
-    case "m:e":
-      return processMathNode(mathElement, chr) + chr;
-    case "m:r":
-      return processMath_run(mathElement, chr);
-    case "m:sSup":
-      return processMath_sSup(mathElement, chr);
-    case "m:sSub":
-      return processMath_sSub(mathElement, chr);
-    case "m:d":
-      return processMath_d(mathElement, chr);
-    case "m:f":
-      return processMath_f(mathElement, chr);
-    case "m:nary":
-      return processMath_nary(mathElement, chr);
-    case "m:func":
-      return processMath_func(mathElement, chr);
-    case "m:limLow":
-      return processMath_limLow(mathElement, chr);
-    case "m:m":
-      return processMath_m(mathElement, chr);
-    case "m:acc":
-      return processMath_acc(mathElement, chr);
-    case "m:rad":
-      return processMath_rad(mathElement, chr);
-    case "m:eqArr":
-      return processMath_eqArr(mathElement, chr);
-    case "m:box":
-      return "{" + processMathNode(mathElement, chr) + "}";
-    case "m:sPre":
-      return processMath_sPre(mathElement, chr);
-    default:
-      break;
+class OfficeMathElement {
+  constructor(node) {
+    this.node = node;
   }
-  console.log("* not processed * " + mathElement.nodeName);
-  return "";
+
+  process(chr = "") {
+    switch (this.node.nodeName) {
+      case "m:e":
+        return processMathNode(this.node, chr) + chr;
+      case "m:r":
+        return new OfficeMathRun(this.node).process(chr);
+      case "m:sSup":
+        return new OfficeMathSuperscriptSubscript(this.node).process(chr, "^");
+      case "m:sSub":
+        return new OfficeMathSuperscriptSubscript(this.node).process(chr, "_");
+      case "m:d":
+        return new OfficeMathDelimiter(this.node).process(chr);
+      case "m:f":
+        return new OfficeMathFraction(this.node).process(chr);
+      case "m:nary":
+        return new OfficeMathNary(this.node).process(chr);
+      case "m:func":
+        return new OfficeMathFunction(this.node).process(chr);
+      case "m:limLow":
+        return new OfficeMathLimLow(this.node).process(chr);
+      case "m:m":
+        return new OfficeMathMatrix(this.node).process(chr);
+      case "m:acc":
+        return new OfficeMathAccent(this.node).process(chr);
+      case "m:rad":
+        return new OfficeMathRadical(this.node).process(chr);
+      case "m:eqArr":
+        return new OfficeMathEquationArray(this.node).process(chr);
+      case "m:box":
+        return `{${processMathNode(this.node, chr)}}`;
+      case "m:sPre":
+        return new OfficeMathSPre(this.node).process(chr);
+      case "m:t":
+        return new OfficeMathText(this.node).process(chr);
+      default:
+        return "";
+    }
+  }
 }
 
-function processMath_run(mathElements, chr = "") {
-  console.log("--processMath_run" + chr);
-  let mathString = "";
-  let flagBold = false;
+class OfficeMathSuperscriptSubscript extends OfficeMathElement {
+  process(chr, type) {
+    let mathString = "";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:e") {
+        mathString += processMathNode(mathElement, chr);
+      } else if (mathElement.nodeName === "m:sup" && type === "^") {
+        mathString += `^{${processMathNode(mathElement, chr)}}`;
+      } else if (mathElement.nodeName === "m:sub" && type === "_") {
+        mathString += `_{${processMathNode(mathElement, chr)}}`;
+      }
+    }
+    return mathString;
+  }
+}
 
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:rPr") {
-      for (const rPr of mathElement.childNodes) {
-        if (rPr.nodeName === "m:sty") {
-          if (rPr.getAttribute("m:val") === "b") flagBold = true;
+class OfficeMathDelimiter extends OfficeMathElement {
+  process(chr) {
+    let mathString = "";
+    let openPar = "\\left( ";
+    let closePar = "\\right)";
+
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:dPr") {
+        const delimiters = this.getDelimiters(mathElement);
+        openPar = delimiters.openPar;
+        closePar = delimiters.closePar;
+      } else if (mathElement.nodeName === "m:e") {
+        mathString += processMathNode(mathElement, chr);
+      }
+    }
+
+    if (mathString.startsWith("\\genfrac{}{}{0pt}{}")) {
+      return mathString.replace("\\genfrac{}{}{0pt}{}", "\\binom");
+    }
+
+    return `${openPar}${mathString}${closePar}`;
+  }
+
+  getDelimiters(dPrNode) {
+    let openPar = "\\left( ";
+    let closePar = "\\right)";
+
+    for (const dPr of dPrNode.childNodes) {
+      if (dPr.nodeName === "m:begChr") {
+        const val = dPr.getAttribute("m:val");
+        openPar = val === "|" ? "\\left| " : val === "{" ? "\\left\\{ " : val === "[" ? "\\left\\lbrack " : "\\left. ";
+      } else if (dPr.nodeName === "m:endChr") {
+        const val = dPr.getAttribute("m:val");
+        closePar =
+          val === "|" ? "\\right|" : val === "}" ? "\\right\\} " : val === "]" ? "\\right\\rbrack " : "\\right. ";
+      }
+    }
+
+    return { openPar, closePar };
+  }
+}
+
+class OfficeMathRun extends OfficeMathElement {
+  process(chr = "") {
+    let mathString = "";
+    let flagBold = false;
+
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:rPr") {
+        for (const rPr of mathElement.childNodes) {
+          if (rPr.nodeName === "m:sty" && rPr.getAttribute("m:val") === "b") {
+            flagBold = true;
+          }
+        }
+      } else if (mathElement.nodeName === "m:t") {
+        const textContent = mathElement.textContent.trim();
+        if (mathElement.getAttribute("xml:space") === "preserve") {
+          mathString += textContent === "" ? "\\ \\ " : new OfficeMathFieldCodeText(textContent).process(chr);
+        } else {
+          mathString += textContent;
         }
       }
-    } else if (mathElement.nodeName === "m:t") {
-      if (mathElement.getAttribute("xml:space") === "preserve") {
-        if (mathElement.textContent.trim() === "") mathString += "\\ \\ ";
-        else mathString += processMath_FieldCode(mathElement.textContent);
+    }
+
+    const replacements = [
+      { pre: /π/g, post: "\\pi " },
+      { pre: /∞/g, post: "\\infty " },
+      { pre: /→/g, post: "\\rightarrow " },
+      { pre: /±/g, post: "\\pm " },
+      { pre: /∓/g, post: "\\mp " },
+      { pre: /α/g, post: "\\alpha " },
+      { pre: /β/g, post: "\\beta " },
+      { pre: /γ/g, post: "\\gamma " },
+      { pre: /…/g, post: "\\ldots " },
+      { pre: /⋅/g, post: "\\cdot " },
+      { pre: /×/g, post: "\\times " },
+      { pre: /θ/g, post: "\\theta " },
+      { pre: /Γ/g, post: "\\Gamma " },
+      { pre: /≈/g, post: "\\approx " },
+      { pre: /ⅈ/g, post: "i " }, // "\\mathbb{i} "?, in that case add \usepackage{amsfonts}
+      { pre: /∇/g, post: "\\nabla " },
+      { pre: /ⅆ/g, post: "d " }, // "\\mathbb{i} "?, in that case add \usepackage{amsfonts}
+      { pre: /≥/g, post: "\\geq " },
+      { pre: /∀/g, post: "\\forall " },
+      { pre: /∃/g, post: "\\exists " },
+      { pre: /∧/g, post: "\\land " },
+      { pre: /⇒/g, post: "\\Rightarrow " },
+      { pre: /ψ/g, post: "\\psi " },
+      { pre: /∂/g, post: "\\partial " },
+      { pre: /≠/g, post: "\\neq " },
+      { pre: /~/g, post: "\\sim " },
+      { pre: /÷/g, post: "\\div " },
+      { pre: /∝/g, post: "\\propto " },
+      { pre: /≪/g, post: "\\ll " },
+      { pre: /≫/g, post: "\\gg " },
+      { pre: /≤/g, post: "\\leq " },
+      { pre: /≅/g, post: "\\cong " },
+      { pre: /≡/g, post: "\\equiv " },
+      { pre: /∁/g, post: "\\complement " },
+      { pre: /∪/g, post: "\\cup " },
+      { pre: /∩/g, post: "\\cap " },
+      { pre: /∅/g, post: "\\varnothing " },
+      { pre: /∆/g, post: "\\mathrm{\\Delta}, " },
+      { pre: /∄/g, post: "\\nexists " },
+      { pre: /∈/g, post: "\\in " },
+      { pre: /∋/g, post: "\\ni " },
+      { pre: /←/g, post: "\\leftarrow " },
+      { pre: /↑/g, post: "\\uparrow " },
+      { pre: /↓/g, post: "\\downarrow " },
+      { pre: /↔/g, post: "\\leftrightarrow " },
+      { pre: /∴/g, post: "\\therefore " },
+      { pre: /¬/g, post: "\\neg " },
+      { pre: /δ/g, post: "\\delta " },
+      { pre: /ε/g, post: "\\varepsilon " },
+      { pre: /ϵ/g, post: "\\epsilon " },
+      { pre: /ϑ/g, post: "\\vartheta " },
+      { pre: /μ/g, post: "\\mu " },
+      { pre: /ρ/g, post: "\\rho " },
+      { pre: /σ/g, post: "\\sigma " },
+      { pre: /τ/g, post: "\\tau " },
+      { pre: /φ/g, post: "\\varphi " },
+      { pre: /ω/g, post: "\\omega " },
+      { pre: /∙/g, post: "\\bullet " },
+      { pre: /⋮/g, post: "\\vdots " },
+      { pre: /⋱/g, post: "\\ddots " },
+      { pre: /ℵ/g, post: "\\aleph " },
+      { pre: /ℶ/g, post: "\\beth " },
+      { pre: /∎/g, post: "\\blacksquare " },
+      { pre: /%°/g, post: "\\%{^\\circ} " },
+      { pre: /√/g, post: "\\sqrt{} " },
+      { pre: /∛/g, post: "\\sqrt[3]{} " },
+      { pre: /∜/g, post: "\\sqrt[4]{} " },
+    ];
+
+    const replacer = (str) => replacements.reduce((acc, { pre, post }) => acc.replace(pre, post), str);
+    mathString = replacer(mathString);
+
+    if (flagBold) {
+      mathString = `\\mathbf{${mathString}}`;
+    }
+
+    return mathString;
+  }
+}
+
+class OfficeMathFraction extends OfficeMathElement {
+  process(chr) {
+    const fracType = this.getFractionType();
+    return this.processFraction(chr, fracType);
+  }
+
+  getFractionType() {
+    let fracType = "";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:fPr") {
+        for (const fPr of mathElement.childNodes) {
+          if (fPr.nodeName === "m:type") {
+            fracType = fPr.getAttribute("m:val");
+          }
+        }
+      }
+    }
+    return fracType;
+  }
+
+  processFraction(chr, fracType) {
+    let mathString = "";
+    let numString = "";
+    let denString = "";
+
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:num") {
+        numString = processMathNode(mathElement, chr);
+      } else if (mathElement.nodeName === "m:den") {
+        denString = processMathNode(mathElement, chr);
+      }
+    }
+
+    switch (fracType) {
+      case "noBar":
+        // if this fraction is in delimiter, it will be replaced to \\binom in MathDelimiter.process
+        mathString = `\\genfrac{}{}{0pt}{}{${numString}}{${denString}}`;
+        break;
+      case "skw":
+        // to use \\nicefrac, add \usepackage{units}
+        mathString = `\\nicefrac{${numString}}{${denString}}`;
+        break;
+      case "lin":
+        mathString = `${numString}/${denString}`;
+        break;
+      default:
+        mathString = `\\frac{${numString}}{${denString}}`;
+    }
+
+    return mathString;
+  }
+}
+
+class OfficeMathNary extends OfficeMathElement {
+  process(chr) {
+    let mathString = "\\int";
+    let subString = "";
+    let supString = "";
+    let postString = "";
+
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:naryPr") {
+        for (const naryPr of mathElement.childNodes) {
+          if (naryPr.nodeName === "m:chr") {
+            const val = naryPr.getAttribute("m:val");
+            mathString = this.getNaryOperator(val);
+          }
+        }
+      } else if (mathElement.nodeName === "m:sub") {
+        subString = `_{${processMathNode(mathElement, chr)}}`;
+      } else if (mathElement.nodeName === "m:sup") {
+        supString = `^{${processMathNode(mathElement, chr)}}`;
       } else {
-        mathString += mathElement.textContent;
+        postString += `{${processMathNode(mathElement, chr)}}`;
       }
     }
+
+    return `${mathString}${subString}${supString}${postString}`;
   }
 
-  const replacestrs = [
-    { pre: /π/g, post: "\\pi " },
-    { pre: /∞/g, post: "\\infty " },
-    { pre: /→/g, post: "\\rightarrow " },
-    { pre: /±/g, post: "\\pm " },
-    { pre: /∓/g, post: "\\mp " },
-    { pre: /α/g, post: "\\alpha " },
-    { pre: /β/g, post: "\\beta " },
-    { pre: /γ/g, post: "\\gamma " },
-    { pre: /…/g, post: "\\ldots " },
-    { pre: /⋅/g, post: "\\cdot " },
-    { pre: /×/g, post: "\\times " },
-    { pre: /θ/g, post: "\\theta " },
-    { pre: /Γ/g, post: "\\Gamma " },
-    { pre: /≈/g, post: "\\approx " },
-    { pre: /ⅈ/g, post: "i " }, //"\\mathbb{i} "? mathbb -> usepackage{amsfonts}
-    { pre: /∇/g, post: "\\nabla " },
-    { pre: /ⅆ/g, post: "d " }, //"\\mathbb{d} "?
-    { pre: /≥/g, post: "\\geq " },
-    { pre: /∀/g, post: "\\forall " },
-    { pre: /∃/g, post: "\\exists " },
-    { pre: /∧/g, post: "\\land " },
-    { pre: /⇒/g, post: "\\Rightarrow " },
-    { pre: /ψ/g, post: "\\psi " },
-    { pre: /∂/g, post: "\\partial " },
-    { pre: /≠/g, post: "\\neq " },
-    { pre: /~/g, post: "\\sim " },
-    { pre: /÷/g, post: "\\div " },
-    { pre: /∝/g, post: "\\propto " },
-    { pre: /≪/g, post: "\\ll " },
-    { pre: /≫/g, post: "\\gg " },
-    { pre: /≤/g, post: "\\leq " },
-    { pre: /≅/g, post: "\\cong " },
-    { pre: /≡/g, post: "\\equiv " },
-    { pre: /∁/g, post: "\\complement " },
-    { pre: /∪/g, post: "\\cup " },
-    { pre: /∩/g, post: "\\cap " },
-    { pre: /∅/g, post: "\\varnothing " },
-    { pre: /∆/g, post: "\\mathrm{\\Delta}, " },
-    { pre: /∄/g, post: "\\nexists " },
-    { pre: /∈/g, post: "\\in " },
-    { pre: /∋/g, post: "\\ni " },
-    { pre: /←/g, post: "\\leftarrow " },
-    { pre: /↑/g, post: "\\uparrow " },
-    { pre: /↓/g, post: "\\downarrow " },
-    { pre: /↔/g, post: "\\leftrightarrow " },
-    { pre: /∴/g, post: "\\therefore " },
-    { pre: /¬/g, post: "\\neg " },
-    { pre: /δ/g, post: "\\delta " },
-    { pre: /ε/g, post: "\\varepsilon " },
-    { pre: /ϵ/g, post: "\\epsilon " },
-    { pre: /ϑ/g, post: "\\vartheta " },
-    { pre: /μ/g, post: "\\mu " },
-    { pre: /ρ/g, post: "\\rho " },
-    { pre: /σ/g, post: "\\sigma " },
-    { pre: /τ/g, post: "\\tau " },
-    { pre: /φ/g, post: "\\varphi " },
-    { pre: /ω/g, post: "\\omega " },
-    { pre: /∙/g, post: "\\bullet " },
-    { pre: /⋮/g, post: "\\vdots " },
-    { pre: /⋱/g, post: "\\ddots " },
-    { pre: /ℵ/g, post: "\\aleph " },
-    { pre: /ℶ/g, post: "\\beth " },
-    { pre: /∎/g, post: "\\blacksquare " },
-    { pre: /%°/g, post: "\\%{^\\circ} " },
-    { pre: /√/g, post: "\\sqrt{} " },
-    { pre: /∛/g, post: "\\sqrt[3]{} " },
-    { pre: /∜/g, post: "\\sqrt[4]{} " },
-  ];
-
-  for (const replacestr of replacestrs) {
-    mathString = mathString.replace(replacestr.pre, replacestr.post);
-  }
-  if (flagBold) mathString = "\\mathbf{" + mathString + "}";
-
-  return mathString;
-}
-
-function processMath_sSup(mathElements, chr = "") {
-  console.log("-processMath_sSup" + chr);
-  let mathString = "";
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:e") {
-      mathString += processMathNode(mathElement, chr);
-    } else if (mathElement.nodeName === "m:sup") {
-      mathString += "^{" + processMathNode(mathElement, chr) + "}";
+  getNaryOperator(val) {
+    switch (val) {
+      case "∑":
+        return "\\sum";
+      case "∏":
+        return "\\prod";
+      case "∐":
+        return "\\coprod";
+      case "∬":
+        return "\\iint";
+      case "∭":
+        return "\\iiint";
+      case "∮":
+        return "\\oint";
+      case "∯":
+        return "\\oiint"; // add \usepackage{esint}
+      case "∰":
+        return "\\oiiint"; // add \usepackage{mathdesign,mdsymbol}
+      case "⋃":
+        return "\\bigcup";
+      case "⋂":
+        return "\\bigcap";
+      case "⋁":
+        return "\\bigvee";
+      case "⋀":
+        return "\\bigwedge";
+      default:
+        return "\\int";
     }
   }
-  return mathString;
 }
 
-function processMath_sSub(mathElements, chr = "") {
-  console.log("-processMath_sSub" + chr);
-  let mathString = "";
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:e") {
-      mathString += processMathNode(mathElement, chr);
-    } else if (mathElement.nodeName === "m:sub") {
-      mathString += "_{" + processMathNode(mathElement, chr) + "}";
-    }
-  }
-  return mathString;
-}
-
-function processMath_d(mathElements, chr = "") {
-  console.log("-processMath_d" + chr);
-  let mathString = "";
-  let openPar = "\\left( ";
-  let closePar = "\\right)";
-
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:dPr") {
-      for (const dPr of mathElement.childNodes) {
-        if (dPr.nodeName === "m:begChr") {
-          if (dPr.getAttribute("m:val") === "|") openPar = "\\left| ";
-          if (dPr.getAttribute("m:val") === "{") openPar = "\\left\\{ ";
-          if (dPr.getAttribute("m:val") === "[") openPar = "\\left\\lbrack ";
-          if (dPr.getAttribute("m:val") === "") openPar = "\\left. ";
-        } else if (dPr.nodeName === "m:endChr") {
-          if (dPr.getAttribute("m:val") === "|") closePar = "\\right|";
-          if (dPr.getAttribute("m:val") === "}") closePar = "\\right\\} ";
-          if (dPr.getAttribute("m:val") === "]") closePar = "\\right\\rbrack ";
-          if (dPr.getAttribute("m:val") === "") closePar = "\\right. ";
-        }
+class OfficeMathFunction extends OfficeMathElement {
+  process(chr) {
+    let mathString = "";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:fName") {
+        const functionName = processMathNode(mathElement, chr);
+        mathString += this.getFunctionString(functionName);
+      } else {
+        mathString += processMathNode(mathElement, chr);
       }
-    } else if (mathElement.nodeName === "m:e") {
-      mathString += processMathNode(mathElement, chr);
+    }
+    return `${mathString}}`;
+  }
+
+  getFunctionString(functionName) {
+    switch (functionName) {
+      case "cos":
+        return "\\cos{";
+      case "sin":
+        return "\\sin{";
+      default:
+        return `${functionName}{`;
     }
   }
-  if (mathString.startsWith("\\genfrac{}{}{0pt}{}{")) return mathString.replace("\\genfrac{}{}{0pt}{}{", "\\binom{");
-  else return openPar + mathString + closePar;
 }
 
-function processMath_f(mathElements, chr = "") {
-  console.log("-processMath_f" + chr);
-  let mathString = "";
-  let fracString = "\\frac{";
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:fPr") {
-      for (const fPr of mathElement.childNodes) {
-        if (fPr.nodeName === "m:type") {
-          if (fPr.getAttribute("m:val") === "noBar") fracString = "\\genfrac{}{}{0pt}{}{"; // if in d "\\binom{";
-          if (fPr.getAttribute("m:val") === "skw") fracString = "\\nicefrac{"; //\usepackage{units}
-          if (fPr.getAttribute("m:val") === "lin") fracString = " ";
-        }
+class OfficeMathLimLow extends OfficeMathElement {
+  process(chr) {
+    let mathString = "";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:e") {
+        const elementString = processMathNode(mathElement, chr);
+        mathString += elementString.trim() === "lim" ? `\\${elementString.trim()}` : elementString;
+      } else if (mathElement.nodeName === "m:lim") {
+        mathString += `_{${processMathNode(mathElement, chr)}}`;
       }
-    } else if (mathElement.nodeName === "m:num") {
-      mathString += processMathNode(mathElement, chr);
-      mathString += "}{";
     }
-    if (mathElement.nodeName === "m:den") {
-      mathString += processMathNode(mathElement, chr);
-    }
+    return mathString;
   }
-  if (fracString === " ") return "\\ " + mathString.replace("}{", "/");
-  return fracString + mathString + "}";
 }
 
-function processMath_nary(mathElements, chr = "") {
-  console.log("-processMath_nary" + chr);
-  let mathString = "\\int";
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:naryPr") {
-      for (const naryPr of mathElement.childNodes) {
-        if (naryPr.nodeName === "m:chr") {
-          if (naryPr.getAttribute("m:val") === "∑") mathString = "\\sum";
-          else if (naryPr.getAttribute("m:val") === "∏") mathString = "\\prod";
-          else if (naryPr.getAttribute("m:val") === "∐") mathString = "\\coprod";
-          else if (naryPr.getAttribute("m:val") === "∬") mathString = "\\iint";
-          else if (naryPr.getAttribute("m:val") === "∭") mathString = "\\iiint";
-          else if (naryPr.getAttribute("m:val") === "∮") mathString = "\\oint";
-          else if (naryPr.getAttribute("m:val") === "∯") mathString = "\\oiint"; //\usepackage{esint}
-          else if (naryPr.getAttribute("m:val") === "∰") mathString = "\\oiiint"; // \usepackage{mathdesign,mdsymbol}
-          else if (naryPr.getAttribute("m:val") === "⋃") mathString = "\\bigcup";
-          else if (naryPr.getAttribute("m:val") === "⋂") mathString = "\\bigcap";
-          else if (naryPr.getAttribute("m:val") === "⋁") mathString = "\\bigvee";
-          else if (naryPr.getAttribute("m:val") === "⋀") mathString = "\\bigwedge";
-        }
+class OfficeMathMatrix extends OfficeMathElement {
+  process(chr) {
+    let mathString = "\\begin{matrix}\n";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:mr") {
+        mathString += `${processMathNode(mathElement, "&").slice(0, -1)} \\\\ \n`;
       }
-    } else if (mathElement.nodeName === "m:sub") {
-      mathString += "_{" + processMathNode(mathElement, chr);
-      mathString += "}";
-    } else if (mathElement.nodeName === "m:sup") {
-      mathString += "^{" + processMathNode(mathElement, chr);
-      mathString += "}";
+    }
+    return `${mathString}\\end{matrix} `;
+  }
+}
+
+class OfficeMathAccent extends OfficeMathElement {
+  process(chr) {
+    let mathString = "\\overrightarrow{";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:e") {
+        mathString += processMathNode(mathElement, chr);
+      }
+    }
+    return `${mathString}}`;
+  }
+}
+
+class OfficeMathRadical extends OfficeMathElement {
+  process(chr) {
+    let mathString = "\\sqrt";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:deg") {
+        mathString += `[${processMathNode(mathElement, chr)}]`;
+      } else if (mathElement.nodeName === "m:e") {
+        mathString += `{${processMathNode(mathElement, chr)}}`;
+      }
+    }
+    return mathString;
+  }
+}
+
+class OfficeMathEquationArray extends OfficeMathElement {
+  process(chr) {
+    let mathString = "\\begin{aligned}\n";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:e") {
+        mathString += `${processMathNode(mathElement)} \\\\ \n`;
+      }
+    }
+    mathString = mathString.replace(/ &/g, "\\ \\ &");
+    if (mathString.endsWith(" \\\\ \n")) {
+      mathString = mathString.slice(0, -5) + "\n";
+    }
+    return `${mathString}\\end{aligned} `;
+  }
+}
+
+class OfficeMathSPre extends OfficeMathElement {
+  process(chr) {
+    let mathString = "";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:sub") {
+        mathString += `_{${processMathNode(mathElement, chr)}}`;
+      } else if (mathElement.nodeName === "m:sup") {
+        mathString += `^{${processMathNode(mathElement, chr)}}`;
+      } else if (mathElement.nodeName !== "m:ctrlPr") {
+        mathString += processMathNode(mathElement, chr);
+      }
+    }
+    return mathString;
+  }
+}
+
+class OfficeMathText extends OfficeMathElement {
+  process(chr) {
+    const textContent = this.node.textContent.trim();
+    if (this.node.getAttribute("xml:space") === "preserve") {
+      return textContent === "" ? "\\ \\ " : new OfficeMathFieldCodeText(textContent).process(chr);
     } else {
-      mathString += "{" + processMathNode(mathElement, chr) + "}";
+      return textContent;
     }
   }
-  return mathString;
 }
 
-function processMath_func(mathElements, chr = "") {
-  console.log("-processMath_func" + chr);
-  let mathString = "";
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:fName") {
-      const functionName = processMathNode(mathElement, chr);
-      switch (functionName) {
-        case "cos":
-          mathString += "\\cos{ ";
-          break;
-        case "sin":
-          mathString += "\\sin{ ";
-          break;
-        default:
-          mathString += functionName + "{";
-          break;
-      }
-    } else {
-      mathString += processMathNode(mathElement, chr);
+class OfficeMathFieldCodeText {
+  constructor(mathText) {
+    this.mathText = mathText;
+  }
+
+  process(chr) {
+    const cancelMatch1 = this.mathText.match(/eq \\o\s?\((.*?),\/\)/i);
+    const cancelMatch2 = this.mathText.match(/eq \\o\s?\((.*?),／\)/i);
+    const overlineMatch = this.mathText.match(/eq \\x\s?\\to \((.*?)\)/i);
+
+    if (cancelMatch1) {
+      return `\\cancel{${cancelMatch1[1]}}`;
     }
-  }
-  return mathString + "}";
-}
-
-function processMath_limLow(mathElements, chr = "") {
-  console.log("-processMath_limLow" + chr);
-  let mathString = "";
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:e") {
-      const elementString = processMathNode(mathElement, chr);
-      if (elementString.trim() === "lim") mathString += "\\" + elementString.trim();
-      else mathString += elementString;
-    } else if (mathElement.nodeName === "m:lim") {
-      mathString += "_{" + processMathNode(mathElement, chr) + "}";
+    if (cancelMatch2) {
+      return `\\cancel{${cancelMatch2[1]}}`;
     }
-  }
-  return mathString;
-}
-
-function processMath_m(mathElements, chr = "") {
-  console.log("-processMath_m" + chr);
-  let mathString = "\\begin{matrix}\n";
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:mr") {
-      mathString += processMathNode(mathElement, "&").slice(0, -1) + " \\\\ \n";
+    if (overlineMatch) {
+      return `\\overline{${overlineMatch[1]}}`;
     }
-  }
-  return mathString + "\\end{matrix} ";
-}
 
-function processMath_acc(mathElements, chr = "") {
-  console.log("-processMath_acc" + chr);
-  let mathString = "\\overrightarrow{";
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:e") {
-      mathString += processMathNode(mathElement, chr);
-    }
+    return this.mathText;
   }
-  return mathString + "}";
-}
-
-function processMath_rad(mathElements, chr = "") {
-  console.log("-processMath_rad" + chr);
-  let mathString = "\\sqrt";
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:deg") {
-      mathString += "[" + processMathNode(mathElement, chr) + "]";
-    }
-    if (mathElement.nodeName === "m:e") {
-      mathString += "{" + processMathNode(mathElement, chr) + "}";
-    }
-  }
-  return mathString;
-}
-
-function processMath_eqArr(mathElements, chr = "") {
-  console.log("-processMath_eqArr" + chr);
-  let mathString = "\\begin{aligned}\n";
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:e") {
-      mathString += processMathNode(mathElement) + " \\\\ \n";
-    }
-  }
-  mathString = mathString.replace(/ &/g, "\\ \\ &");
-  if (mathString.endsWith(" \\\\ \n")) mathString = mathString.slice(0, -5) + "\n";
-  return mathString + "\\end{aligned} ";
-}
-
-function processMath_sPre(mathElements, chr = "") {
-  console.log("-processMath_sPre" + chr);
-  let mathString = "";
-  for (const mathElement of mathElements.childNodes) {
-    if (mathElement.nodeName === "m:sub") {
-      mathString += "_{" + processMathNode(mathElement, chr);
-      mathString += "}";
-    } else if (mathElement.nodeName === "m:sup") {
-      mathString += "^{" + processMathNode(mathElement, chr);
-      mathString += "}";
-    } else if (mathElement.nodeName !== "m:ctrlPr") {
-      mathString += processMathNode(mathElement, chr);
-    }
-  }
-  return mathString;
-}
-
-function processMath_FieldCode(mathText, chr = "") {
-  console.log("-processMath_FieldCode" + chr);
-
-  const results_cancel1 = mathText.match(/eq \\o\s?\((.*?),\/\)/i);
-  const results_cancel2 = mathText.match(/eq \\o\s?\((.*?),／\)/i);
-  const results_overline = mathText.match(/eq \\x\s?\\to \((.*?)\)/i);
-
-  if (results_cancel1) {
-    return `\\cancel{${results_cancel1[1]}}`;
-  }
-  if (results_cancel2) {
-    return `\\cancel{${results_cancel2[1]}}`;
-  }
-  if (results_overline) {
-    return `\\overline{${results_overline[1]}}`;
-  }
-
-  return mathText;
 }
