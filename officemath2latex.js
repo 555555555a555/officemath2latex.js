@@ -8,12 +8,29 @@
 //
 
 function processMathNode(mathXml, chr = "") {
-  let mathString = "";
-  for (const childXml of mathXml.childNodes) {
-    const childElement = new OfficeMathElement(childXml);
-    mathString += childElement.process(chr);
+  const mathNode = new OfficeMathNode(mathXml);
+  return mathNode.process();
+
+  //
+  return mathNode
+    .process()
+    .replace(/\\ /g, "\\spAce")
+    .replace(/ \\/g, "\\")
+    .replace(/\\spAce/g, "\\ ");
+}
+
+class OfficeMathNode {
+  constructor(node) {
+    this.node = node;
   }
-  return mathString;
+  process(chr = "") {
+    let mathString = "";
+    for (const element of this.node.childNodes) {
+      const childElement = new OfficeMathElement(element);
+      mathString += childElement.process(chr);
+    }
+    return mathString;
+  }
 }
 
 class OfficeMathElement {
@@ -24,7 +41,7 @@ class OfficeMathElement {
   process(chr = "") {
     switch (this.node.nodeName) {
       case "m:e":
-        return processMathNode(this.node, chr) + chr;
+        return new OfficeMathNode(this.node).process(chr) + chr;
       case "m:r":
         return new OfficeMathRun(this.node).process(chr);
       case "m:sSup":
@@ -50,7 +67,7 @@ class OfficeMathElement {
       case "m:eqArr":
         return new OfficeMathEquationArray(this.node).process(chr);
       case "m:box":
-        return `{${processMathNode(this.node, chr)}}`;
+        return `{${new OfficeMathNode(this.node).process(chr)}}`;
       case "m:sPre":
         return new OfficeMathSPre(this.node).process(chr);
       case "m:t":
@@ -66,11 +83,11 @@ class OfficeMathSuperscriptSubscript extends OfficeMathElement {
     let mathString = "";
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:e") {
-        mathString += processMathNode(mathElement, chr);
+        mathString += new OfficeMathNode(mathElement).process(chr);
       } else if (mathElement.nodeName === "m:sup" && type === "^") {
-        mathString += `^{${processMathNode(mathElement, chr)}}`;
+        mathString += `^{${new OfficeMathNode(mathElement).process(chr)}}`;
       } else if (mathElement.nodeName === "m:sub" && type === "_") {
-        mathString += `_{${processMathNode(mathElement, chr)}}`;
+        mathString += `_{${new OfficeMathNode(mathElement).process(chr)}}`;
       }
     }
     return mathString;
@@ -89,7 +106,7 @@ class OfficeMathDelimiter extends OfficeMathElement {
         openPar = delimiters.openPar;
         closePar = delimiters.closePar;
       } else if (mathElement.nodeName === "m:e") {
-        mathString += processMathNode(mathElement, chr);
+        mathString += new OfficeMathNode(mathElement).process(chr);
       }
     }
 
@@ -249,9 +266,9 @@ class OfficeMathFraction extends OfficeMathElement {
 
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:num") {
-        numString = processMathNode(mathElement, chr);
+        numString = new OfficeMathNode(mathElement).process(chr);
       } else if (mathElement.nodeName === "m:den") {
-        denString = processMathNode(mathElement, chr);
+        denString = new OfficeMathNode(mathElement).process(chr);
       }
     }
 
@@ -291,11 +308,11 @@ class OfficeMathNary extends OfficeMathElement {
           }
         }
       } else if (mathElement.nodeName === "m:sub") {
-        subString = `_{${processMathNode(mathElement, chr)}}`;
+        subString = `_{${new OfficeMathNode(mathElement).process(chr)}}`;
       } else if (mathElement.nodeName === "m:sup") {
-        supString = `^{${processMathNode(mathElement, chr)}}`;
+        supString = `^{${new OfficeMathNode(mathElement).process(chr)}}`;
       } else {
-        postString += `{${processMathNode(mathElement, chr)}}`;
+        postString += `{${new OfficeMathNode(mathElement).process(chr)}}`;
       }
     }
 
@@ -339,10 +356,10 @@ class OfficeMathFunction extends OfficeMathElement {
     let mathString = "";
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:fName") {
-        const functionName = processMathNode(mathElement, chr);
+        const functionName = new OfficeMathNode(mathElement).process(chr);
         mathString += this.getFunctionString(functionName);
       } else {
-        mathString += processMathNode(mathElement, chr);
+        mathString += new OfficeMathNode(mathElement).process(chr);
       }
     }
     return `${mathString}}`;
@@ -365,10 +382,10 @@ class OfficeMathLimLow extends OfficeMathElement {
     let mathString = "";
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:e") {
-        const elementString = processMathNode(mathElement, chr);
+        const elementString = new OfficeMathNode(mathElement).process(chr);
         mathString += elementString.trim() === "lim" ? `\\${elementString.trim()}` : elementString;
       } else if (mathElement.nodeName === "m:lim") {
-        mathString += `_{${processMathNode(mathElement, chr)}}`;
+        mathString += `_{${new OfficeMathNode(mathElement).process(chr)}}`;
       }
     }
     return mathString;
@@ -380,7 +397,7 @@ class OfficeMathMatrix extends OfficeMathElement {
     let mathString = "\\begin{matrix}\n";
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:mr") {
-        mathString += `${processMathNode(mathElement, "&").slice(0, -1)} \\\\ \n`;
+        mathString += `${new OfficeMathNode(mathElement).process("&").slice(0, -1)} \\\\ \n`;
       }
     }
     return `${mathString}\\end{matrix} `;
@@ -392,7 +409,7 @@ class OfficeMathAccent extends OfficeMathElement {
     let mathString = "\\overrightarrow{";
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:e") {
-        mathString += processMathNode(mathElement, chr);
+        mathString += new OfficeMathNode(mathElement).process(chr);
       }
     }
     return `${mathString}}`;
@@ -404,9 +421,9 @@ class OfficeMathRadical extends OfficeMathElement {
     let mathString = "\\sqrt";
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:deg") {
-        mathString += `[${processMathNode(mathElement, chr)}]`;
+        mathString += `[${new OfficeMathNode(mathElement).process(chr)}]`;
       } else if (mathElement.nodeName === "m:e") {
-        mathString += `{${processMathNode(mathElement, chr)}}`;
+        mathString += `{${new OfficeMathNode(mathElement).process(chr)}}`;
       }
     }
     return mathString;
@@ -418,7 +435,7 @@ class OfficeMathEquationArray extends OfficeMathElement {
     let mathString = "\\begin{aligned}\n";
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:e") {
-        mathString += `${processMathNode(mathElement)} \\\\ \n`;
+        mathString += `${new OfficeMathNode(mathElement).process(chr)} \\\\ \n`;
       }
     }
     mathString = mathString.replace(/ &/g, "\\ \\ &");
@@ -434,11 +451,11 @@ class OfficeMathSPre extends OfficeMathElement {
     let mathString = "";
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:sub") {
-        mathString += `_{${processMathNode(mathElement, chr)}}`;
+        mathString += `_{${new OfficeMathNode(mathElement).process(chr)}}`;
       } else if (mathElement.nodeName === "m:sup") {
-        mathString += `^{${processMathNode(mathElement, chr)}}`;
+        mathString += `^{${new OfficeMathNode(mathElement).process(chr)}}`;
       } else if (mathElement.nodeName !== "m:ctrlPr") {
-        mathString += processMathNode(mathElement, chr);
+        mathString += new OfficeMathNode(mathElement).process(chr);
       }
     }
     return mathString;
@@ -467,7 +484,7 @@ class OfficeMathFieldCodeText {
     const overlineMatch = this.mathText.match(/eq \\x\s?\\to \((.*?)\)/i);
 
     if (cancelMatch1) {
-      return `\\cancel{${cancelMatch1[1]}}`;
+      return `\\cancel{${cancelMatch1[1]}}`; // add \usepackage{cancel}
     }
     if (cancelMatch2) {
       return `\\cancel{${cancelMatch2[1]}}`;
