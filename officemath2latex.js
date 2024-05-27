@@ -124,15 +124,64 @@ class OfficeMathDelimiter extends OfficeMathElement {
     for (const dPr of dPrNode.childNodes) {
       if (dPr.nodeName === "m:begChr") {
         const val = dPr.getAttribute("m:val");
-        openPar = val === "|" ? "\\left| " : val === "{" ? "\\left\\{ " : val === "[" ? "\\left\\lbrack " : "\\left. ";
+        openPar = this.getOpenBracket(val);
       } else if (dPr.nodeName === "m:endChr") {
         const val = dPr.getAttribute("m:val");
-        closePar =
-          val === "|" ? "\\right|" : val === "}" ? "\\right\\} " : val === "]" ? "\\right\\rbrack " : "\\right. ";
+        closePar = this.getCloseBracket(val);
       }
     }
 
     return { openPar, closePar };
+  }
+
+  getOpenBracket(val) {
+    switch (val) {
+      case "|":
+        return "\\left| ";
+      case "{":
+        return "\\left\\{ ";
+      case "[":
+        return "\\left\\lbrack ";
+      case "]":
+        return "\\left\\rbrack ";
+      case "〈":
+        return "\\left\\langle ";
+      case "⌊":
+        return "\\left\\lfloor ";
+      case "⌈":
+        return "\\left\\lceil ";
+      case "‖":
+        return "\\left\\| ";
+      case "⟦":
+        return "\\left. ⟦ ";
+      default:
+        return "\\left. ";
+    }
+  }
+
+  getCloseBracket(val) {
+    switch (val) {
+      case "|":
+        return "\\right| ";
+      case "}":
+        return "\\right\\} ";
+      case "[":
+        return "\\right\\lbrack ";
+      case "]":
+        return "\\right\\rbrack ";
+      case "〉":
+        return "\\right\\rangle ";
+      case "⌋":
+        return "\\right\\rfloor ";
+      case "⌉":
+        return "\\right\\rceil ";
+      case "‖":
+        return "\\right\\| ";
+      case "⟧":
+        return "\\right.⟧ ";
+      default:
+        return "\\right. ";
+    }
   }
 }
 
@@ -367,10 +416,23 @@ class OfficeMathFunction extends OfficeMathElement {
 
   getFunctionString(functionName) {
     switch (functionName) {
-      case "cos":
-        return "\\cos{";
+      case "tan":
+      case "csc":
+      case "sec":
+      case "cot":
       case "sin":
-        return "\\sin{";
+      case "cos":
+      case "tan":
+      case "csc":
+      case "sec":
+      case "cot":
+      case "sinh":
+      case "cosh":
+      case "tanh":
+      case "coth":
+        //case "csch": // not defined in LaTeX
+        //case "sech": // not defined in LaTeX
+        return `\\${functionName}{`;
       default:
         return `${functionName}{`;
     }
