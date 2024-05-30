@@ -58,16 +58,24 @@ class OfficeMathElement {
         return new OfficeMathFunction(this.node).process(chr);
       case "m:limLow":
         return new OfficeMathLimLow(this.node).process(chr);
+      case "m:limUpp":
+        return new OfficeMathLimUpper(this.node).process(chr);
       case "m:m":
         return new OfficeMathMatrix(this.node).process(chr);
       case "m:acc":
         return new OfficeMathAccent(this.node).process(chr);
+      case "m:groupChr":
+        return new OfficeMathGroupCharacter(this.node).process(chr);
+      case "m:bar":
+        return new OfficeMathBar(this.node).process(chr);
       case "m:rad":
         return new OfficeMathRadical(this.node).process(chr);
       case "m:eqArr":
         return new OfficeMathEquationArray(this.node).process(chr);
       case "m:box":
         return `{${new OfficeMathNode(this.node).process(chr)}}`;
+      case "m:borderBox":
+        return `\\boxed{${new OfficeMathNode(this.node).process(chr)}}`;
       case "m:sPre":
         return new OfficeMathSPre(this.node).process(chr);
       case "m:t":
@@ -454,6 +462,21 @@ class OfficeMathLimLow extends OfficeMathElement {
   }
 }
 
+class OfficeMathLimUpper extends OfficeMathElement {
+  process(chr) {
+    let mathString = "";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:e") {
+        const elementString = new OfficeMathNode(mathElement).process(chr);
+        mathString += elementString.trim() === "lim" ? `\\${elementString.trim()}` : elementString;
+      } else if (mathElement.nodeName === "m:lim") {
+        mathString += `^{${new OfficeMathNode(mathElement).process(chr)}}`;
+      }
+    }
+    return mathString;
+  }
+}
+
 class OfficeMathMatrix extends OfficeMathElement {
   process(chr) {
     let mathString = "\\begin{matrix}\n";
@@ -468,13 +491,119 @@ class OfficeMathMatrix extends OfficeMathElement {
 
 class OfficeMathAccent extends OfficeMathElement {
   process(chr) {
-    let mathString = "\\overrightarrow{";
+    let accentString = "\\widehat{";
+    let mathString = "";
     for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:accPr") {
+        for (const naryPr of mathElement.childNodes) {
+          if (naryPr.nodeName === "m:chr") {
+            const val = naryPr.getAttribute("m:val");
+            accentString = this.getAccentOperator(val);
+          }
+        }
+      }
       if (mathElement.nodeName === "m:e") {
         mathString += new OfficeMathNode(mathElement).process(chr);
       }
     }
-    return `${mathString}}`;
+    return `${accentString}${mathString}${"}".repeat(
+      accentString.split("{").length - 1 - (accentString.split("}").length - 1)
+    )}`;
+  }
+  getAccentOperator(val) {
+    switch (val) {
+      case "̇":
+        return "\\dot{";
+      case "̈":
+        return "\\ddot{";
+      case "⃛":
+        return "\\dddot{";
+      case "̌":
+        return "\\check{";
+      case "́":
+        return "\\acute{";
+      case "̀":
+        return "\\grave{";
+      case "̆":
+        return "\\breve{";
+      case "̃":
+        return "\\widetilde{";
+      case "̅":
+        return "\\overline{";
+      case "̿":
+        return "\\overline{\\overline{";
+      case "⃖":
+        return "\\overleftarrow{";
+      case "⃡":
+        return "\\overleftrightarrow{";
+      case "⃐":
+        return "\\overset{\\leftharpoonup}{";
+      case "⃑":
+        return "\\overset{\\rightharpoonup}{";
+
+      //"̀"
+      default:
+        return "\\overrightarrow{";
+    }
+  }
+}
+
+class OfficeMathGroupCharacter extends OfficeMathElement {
+  //accentPrefix = "\\overset{";
+  //accentPostfix = "}{︸}";
+  accentPrefix = "\\underbrace{";
+  accentPostfix = "}";
+
+  process(chr) {
+    let mathString = "";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:groupChrPr") {
+        for (const naryPr of mathElement.childNodes) {
+          if (naryPr.nodeName === "m:chr") {
+            const val = naryPr.getAttribute("m:val");
+            this.accentPrefix = this.getAccentOperator(val);
+          }
+        }
+      }
+      if (mathElement.nodeName === "m:e") {
+        mathString += new OfficeMathNode(mathElement).process(chr);
+      }
+    }
+    return `${this.accentPrefix}${mathString}${this.accentPostfix}`;
+  }
+  getAccentOperator(val) {
+    switch (val) {
+      case "⏞": // <m:pos m:val="top"/><m:vertJc m:val="bot"/>
+        this.accentPostfix = "}";
+        return "\\overbrace{";
+      //"̀"
+      default:
+        this.accentPostfix = "}";
+        return "\\GCHR2{";
+    }
+  }
+}
+
+class OfficeMathBar extends OfficeMathElement {
+  process(chr) {
+    let accentString = "\\underline{";
+    let mathString = "";
+    for (const mathElement of this.node.childNodes) {
+      if (mathElement.nodeName === "m:barPr") {
+        for (const barPr of mathElement.childNodes) {
+          if (barPr.nodeName === "m:pos") {
+            const val = barPr.getAttribute("m:val");
+            if (val === "top") accentString = "\\overline{";
+          }
+        }
+      }
+      if (mathElement.nodeName === "m:e") {
+        mathString += new OfficeMathNode(mathElement).process(chr);
+      }
+    }
+    return `${accentString}${mathString}${"}".repeat(
+      accentString.split("{").length - 1 - (accentString.split("}").length - 1)
+    )}`;
   }
 }
 
