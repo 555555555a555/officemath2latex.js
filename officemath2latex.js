@@ -253,7 +253,7 @@ class OfficeMathRun extends OfficeMathElement {
       { pre: /∪/g, post: "\\cup " },
       { pre: /∩/g, post: "\\cap " },
       { pre: /∅/g, post: "\\varnothing " },
-      { pre: /∆/g, post: "\\mathrm{\\Delta}, " },
+      { pre: /∆/g, post: "\\mathrm{\\Delta} " },
       { pre: /∄/g, post: "\\nexists " },
       { pre: /∈/g, post: "\\in " },
       { pre: /∋/g, post: "\\ni " },
@@ -283,6 +283,8 @@ class OfficeMathRun extends OfficeMathElement {
       { pre: /√/g, post: "\\sqrt{} " },
       { pre: /∛/g, post: "\\sqrt[3]{} " },
       { pre: /∜/g, post: "\\sqrt[4]{} " },
+      { pre: /≜/g, post: "\\triangleq " },
+      //
     ];
 
     const replacer = (str) => replacements.reduce((acc, { pre, post }) => acc.replace(pre, post), str);
@@ -442,7 +444,16 @@ class OfficeMathFunction extends OfficeMathElement {
         //case "sech": // not defined in LaTeX
         return `\\${functionName}{`;
       default:
-        return `${functionName}{`;
+        if (
+          functionName.startsWith("log") ||
+          functionName.startsWith("ln") ||
+          functionName.startsWith("max") ||
+          functionName.startsWith("min")
+        ) {
+          return `\\${functionName}{`;
+        } else {
+          return `${functionName}{`;
+        }
     }
   }
 }
@@ -549,8 +560,6 @@ class OfficeMathAccent extends OfficeMathElement {
 }
 
 class OfficeMathGroupCharacter extends OfficeMathElement {
-  //accentPrefix = "\\overset{";
-  //accentPostfix = "}{︸}";
   accentPrefix = "\\underbrace{";
   accentPostfix = "}";
 
@@ -558,10 +567,12 @@ class OfficeMathGroupCharacter extends OfficeMathElement {
     let mathString = "";
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:groupChrPr") {
+        const posElement = mathElement.querySelectorAll("pos");
         for (const naryPr of mathElement.childNodes) {
           if (naryPr.nodeName === "m:chr") {
             const val = naryPr.getAttribute("m:val");
-            this.accentPrefix = this.getAccentOperator(val);
+            if (posElement.length === 1) this.accentPrefix = this.getAccentOperator_Top(val);
+            else this.accentPrefix = this.getAccentOperator_Bottom(val);
           }
         }
       }
@@ -571,15 +582,57 @@ class OfficeMathGroupCharacter extends OfficeMathElement {
     }
     return `${this.accentPrefix}${mathString}${this.accentPostfix}`;
   }
-  getAccentOperator(val) {
+  getAccentOperator_Top(val) {
     switch (val) {
-      case "⏞": // <m:pos m:val="top"/><m:vertJc m:val="bot"/>
+      case "⏞":
         this.accentPostfix = "}";
         return "\\overbrace{";
-      //"̀"
+      case "←":
+        this.accentPostfix = "}";
+        return "\\overset{\\leftarrow}{";
+      case "→":
+        this.accentPostfix = "}";
+        return "\\overset{\\rightarrow}{";
+      case "⇐":
+        this.accentPostfix = "}";
+        return "\\overset{\\Leftarrow}{";
+      case "⇒":
+        this.accentPostfix = "}";
+        return "\\overset{\\Rightarrow}{";
+      case "↔":
+        this.accentPostfix = "}";
+        return "\\overset{\\leftrightarrow}{";
+      case "⇔":
+        this.accentPostfix = "}";
+        return "\\overset{\\Leftrightarrow}{";
       default:
         this.accentPostfix = "}";
-        return "\\GCHR2{";
+        return "{";
+    }
+  }
+  getAccentOperator_Bottom(val) {
+    switch (val) {
+      case "←":
+        this.accentPostfix = "}{\\leftarrow}";
+        return "\\overset{";
+      case "→":
+        this.accentPostfix = "}{\\rightarrow}";
+        return "\\overset{";
+      case "⇐":
+        this.accentPostfix = "}{\\Leftarrow}";
+        return "\\overset{";
+      case "⇒":
+        this.accentPostfix = "}{\\Rightarrow}";
+        return "\\overset{";
+      case "↔":
+        this.accentPostfix = "}{\\leftrightarrow}";
+        return "\\overset{";
+      case "⇔":
+        this.accentPostfix = "}{\\Leftrightarrow}";
+        return "\\overset{";
+      default:
+        this.accentPostfix = "}";
+        return "{";
     }
   }
 }
