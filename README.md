@@ -9,6 +9,7 @@ It handles all formulas included as samples in MS Word equations and any mathema
 elements you can create using the Word equation toolbar. This should be sufficient for 
 most users. However, we understand that some users might require advanced functionalities 
 for complex equations.
+
 Don't hesitate to let us know if you encounter any issues or have suggestions for improvement!
 
 ## How to use
