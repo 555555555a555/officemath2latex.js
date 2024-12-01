@@ -24,10 +24,13 @@ class OfficeMathNode {
     this.node = node;
   }
   process(chr = "") {
+    console.log("*OfficeMathNode:");
+    console.log(this.node);
     let mathString = "";
     for (const element of this.node.childNodes) {
       const childElement = new OfficeMathElement(element);
       mathString += childElement.process(chr);
+      console.log("mathString:" + mathString);
     }
     return mathString;
   }
@@ -39,15 +42,20 @@ class OfficeMathElement {
   }
 
   process(chr = "") {
+    console.log("*OfficeMathElement:");
+    console.log(this.node);
+
     switch (this.node.nodeName) {
       case "m:e":
         return new OfficeMathNode(this.node).process(chr) + chr;
       case "m:r":
         return new OfficeMathRun(this.node).process(chr);
       case "m:sSup":
-        return new OfficeMathSuperscriptSubscript(this.node).process(chr, "^");
+        return new OfficeMathSuperscriptSubscript(this.node).process(chr);
       case "m:sSub":
-        return new OfficeMathSuperscriptSubscript(this.node).process(chr, "_");
+        return new OfficeMathSuperscriptSubscript(this.node).process(chr);
+      case "m:sSubSup":
+        return new OfficeMathSuperscriptSubscript(this.node).process(chr);
       case "m:d":
         return new OfficeMathDelimiter(this.node).process(chr);
       case "m:f":
@@ -57,9 +65,9 @@ class OfficeMathElement {
       case "m:func":
         return new OfficeMathFunction(this.node).process(chr);
       case "m:limLow":
-        return new OfficeMathLimLow(this.node).process(chr);
+        return new OfficeMathLimLowerUpper(this.node).process(chr, "_");
       case "m:limUpp":
-        return new OfficeMathLimUpper(this.node).process(chr);
+        return new OfficeMathLimLowerUpper(this.node).process(chr, "^");
       case "m:m":
         return new OfficeMathMatrix(this.node).process(chr);
       case "m:acc":
@@ -87,14 +95,19 @@ class OfficeMathElement {
 }
 
 class OfficeMathSuperscriptSubscript extends OfficeMathElement {
-  process(chr, type) {
+  process(chr) {
+    console.log("*OfficeMathNodeSub_Sup:");
+    console.log(this.node);
+
     let mathString = "";
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:e") {
         mathString += new OfficeMathNode(mathElement).process(chr);
-      } else if (mathElement.nodeName === "m:sup" && type === "^") {
+      } else if (mathElement.nodeName === "m:sup") {
+        // && type === "^"
         mathString += `^{${new OfficeMathNode(mathElement).process(chr)}}`;
-      } else if (mathElement.nodeName === "m:sub" && type === "_") {
+      } else if (mathElement.nodeName === "m:sub") {
+        //  && type === "_"
         mathString += `_{${new OfficeMathNode(mathElement).process(chr)}}`;
       }
     }
@@ -458,30 +471,15 @@ class OfficeMathFunction extends OfficeMathElement {
   }
 }
 
-class OfficeMathLimLow extends OfficeMathElement {
-  process(chr) {
+class OfficeMathLimLowerUpper extends OfficeMathElement {
+  process(chr, type) {
     let mathString = "";
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:e") {
         const elementString = new OfficeMathNode(mathElement).process(chr);
         mathString += elementString.trim() === "lim" ? `\\${elementString.trim()}` : elementString;
       } else if (mathElement.nodeName === "m:lim") {
-        mathString += `_{${new OfficeMathNode(mathElement).process(chr)}}`;
-      }
-    }
-    return mathString;
-  }
-}
-
-class OfficeMathLimUpper extends OfficeMathElement {
-  process(chr) {
-    let mathString = "";
-    for (const mathElement of this.node.childNodes) {
-      if (mathElement.nodeName === "m:e") {
-        const elementString = new OfficeMathNode(mathElement).process(chr);
-        mathString += elementString.trim() === "lim" ? `\\${elementString.trim()}` : elementString;
-      } else if (mathElement.nodeName === "m:lim") {
-        mathString += `^{${new OfficeMathNode(mathElement).process(chr)}}`;
+        mathString += `${type}{${new OfficeMathNode(mathElement).process(chr)}}`;
       }
     }
     return mathString;
@@ -489,14 +487,17 @@ class OfficeMathLimUpper extends OfficeMathElement {
 }
 
 class OfficeMathMatrix extends OfficeMathElement {
-  process(chr) {
-    let mathString = "\\begin{matrix}\n";
+  process() {
+    const matrixRows = [];
+
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:mr") {
-        mathString += `${new OfficeMathNode(mathElement).process("&").slice(0, -1)} \\\\ \n`;
+        const rowString = new OfficeMathNode(mathElement).process("&").slice(0, -1);
+        matrixRows.push(rowString);
       }
     }
-    return `${mathString}\\end{matrix} `;
+
+    return `\\begin{matrix}\n${matrixRows.join(" \\\\\n")}\n\\end{matrix}`;
   }
 }
 
@@ -649,8 +650,7 @@ class OfficeMathBar extends OfficeMathElement {
             if (val === "top") accentString = "\\overline{";
           }
         }
-      }
-      if (mathElement.nodeName === "m:e") {
+      } else if (mathElement.nodeName === "m:e") {
         mathString += new OfficeMathNode(mathElement).process(chr);
       }
     }
