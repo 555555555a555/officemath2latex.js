@@ -17,5 +17,8 @@ Don't hesitate to let us know if you encounter any issues or have suggestions fo
 For detailed usage instructions and examples, please refer to the `officemath2latex_sample.html` file provided in the repository.
 This file demonstrates how to integrate the function into your project.
 
+You can access directly to the example.
+https://555555555a555.github.io/officemath2latex.js/officemath2latex_sample.html
+
 ## License
 This project is licensed under the MIT License.
