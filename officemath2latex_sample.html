@@ -1,18 +1,20 @@
-<!DOCTYPE html>
+<!doctype html>
 <html>
   <head>
     <meta charset="UTF-8" />
     <title>officemath2latex sample</title>
   </head>
   <body>
-    <p>select .docx file</p>
+    <p>select a .docx file</p>
     <input id="file" type="file" accept=".docx" />
     <hr />
     <div id="container"></div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js"></script>
+    <script src="./officemath2latex.js"></script>
     <script>
       file.onchange = (e) => {
         let target = e.target.files[0];
-        (file.value = null), readFile(target);
+        ((file.value = null), readFile(target));
       };
       async function readFile(target) {
         container.innerHTML = "";
@@ -58,9 +60,6 @@
         accordionContainer.appendChild(detailsElement);
       }
     </script>
-    <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
     <script id="MathJax-script" async src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.5.0/jszip.min.js"></script>
-    <script src="./officemath2latex.js"></script>
   </body>
 </html>

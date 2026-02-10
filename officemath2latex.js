@@ -6,6 +6,13 @@
 // It takes an XML element as input and returns the corresponding LaTeX representation.
 // The input mathXml element must be "m:oMath" node.
 //
+// Change Log:
+// 2024-05-20: Initial release
+// 2024-12-02: Minor fix: Resolved an issue where the function could not handle
+//             simultaneous superscript and subscript on a single character.
+// 2026-02-10: Minor fix: Fixed error processing nested limLow and corrected
+//             special character handling in MathRun and MathText.
+//
 
 function processMathNode(mathXml, chr = "") {
   const mathNode = new OfficeMathNode(mathXml);
@@ -223,7 +230,7 @@ class OfficeMathRun extends OfficeMathElement {
         if (mathElement.getAttribute("xml:space") === "preserve") {
           mathString += textContent === "" ? "\\ \\ " : new OfficeMathFieldCodeText(textContent).process(chr);
         } else {
-          mathString += textContent;
+          mathString += textContent.replace(/_/g, "\\_").replace(/\^/g, "\\^{}");
         }
       }
     }
@@ -477,7 +484,8 @@ class OfficeMathLimLowerUpper extends OfficeMathElement {
     for (const mathElement of this.node.childNodes) {
       if (mathElement.nodeName === "m:e") {
         const elementString = new OfficeMathNode(mathElement).process(chr);
-        mathString += elementString.trim() === "lim" ? `\\${elementString.trim()}` : elementString;
+        mathString +=
+          elementString.trim() === "lim" ? `\\${elementString.trim()}` : `\\mathop{${elementString}}\\limits`;
       } else if (mathElement.nodeName === "m:lim") {
         mathString += `${type}{${new OfficeMathNode(mathElement).process(chr)}}`;
       }
@@ -519,7 +527,7 @@ class OfficeMathAccent extends OfficeMathElement {
       }
     }
     return `${accentString}${mathString}${"}".repeat(
-      accentString.split("{").length - 1 - (accentString.split("}").length - 1)
+      accentString.split("{").length - 1 - (accentString.split("}").length - 1),
     )}`;
   }
   getAccentOperator(val) {
@@ -655,7 +663,7 @@ class OfficeMathBar extends OfficeMathElement {
       }
     }
     return `${accentString}${mathString}${"}".repeat(
-      accentString.split("{").length - 1 - (accentString.split("}").length - 1)
+      accentString.split("{").length - 1 - (accentString.split("}").length - 1),
     )}`;
   }
 }
@@ -712,7 +720,7 @@ class OfficeMathText extends OfficeMathElement {
     if (this.node.getAttribute("xml:space") === "preserve") {
       return textContent === "" ? "\\ \\ " : new OfficeMathFieldCodeText(textContent).process(chr);
     } else {
-      return textContent;
+      return textContent.replace(/_/g, "\\_").replace(/\^/g, "\\^{}");
     }
   }
 }
