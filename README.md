@@ -20,5 +20,9 @@ This file demonstrates how to integrate the function into your project.
 You can access directly to the example.
 https://555555555a555.github.io/officemath2latex.js/officemath2latex_sample.html
 
+## Known Issues
+
+Some mathematical expressions that should be represented as a single formula are occasionally split into two separate m:oMath nodes. We need to determine the best strategy for handling these cases. Simply identifying and converting individual m:oMath nodes results in the output of incomplete or fragmented LaTeX formulas.
+
 ## License
 This project is licensed under the MIT License.
