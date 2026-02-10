@@ -18,7 +18,7 @@ For detailed usage instructions and examples, please refer to the `officemath2la
 This file demonstrates how to integrate the function into your project.
 
 You can access directly to the example.
-https://555555555a555.github.io/officemath2latex.js/officemath2latex_sample.html
+https://freudolacaniana.github.io/officemath2latex.js/officemath2latex_sample.html
 
 ## Known Issues
 
